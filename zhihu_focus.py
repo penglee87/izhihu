@@ -1,42 +1,38 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-import requests,sys,os,json,re,time
-from bs4 import BeautifulSoup as BS
+import requests,sys,os,json,re
+from bs4 import BeautifulSoup
 """
-批量关注知乎用户
+批量关注某话题下知乎用户
 
 1: 每一个用户都有一个hash_id应该是其用户标志，可以在chorme浏览器看得到这个，然后在html页面全局搜索即可用正则获得该值
 2：可以在批量获得某个话题下面的用户。
 3：更换话题，假如想关注NBA底下的所有用户，需要首先获得nba这个话题的link-id
-4: start关键字这么来的 t = int(time.time()) 十位数的时间戳
+4: start关键字这么来的 第N页的最后一个用户ID
 """
 
-#得到post所需xsrf
-def getXsrf():
-    r = requests.get(topic_url)
-    raw_xsrf = re.findall("xsrf(.*)", r.text)
-    _xsrf = raw_xsrf[0][9:-3]
-    return _xsrf
+
     
 #得到话题页面要关注用户的hash_id
 def getHash():
     hash_id_all = []
     post_url = topic_url
     #header_info["Referer"] = post_url
-    xsrf = getXsrf()
-    for i in range(3):
-        x = 0 + i * 20
-        start = int(time.time())
+    result = requests.get(post_url)
+    xsrf = re.search(r'name="_xsrf" value="(.*?)"', result.text).group(1)
+    raw_hash_id = re.findall('<a href="javascript:;" name="focus" class="zg-btn zg-btn-follow" id="pp-(.*?)">关注</a>', result.text)
+    for i in range(2,5):
+        x = i * 20
+        
+        start = re.findall(r'class="zm-person-item" id="mi-(.*?)"',result.text)[-1]
         payload={"offset":x, "start":start, "_xsrf":xsrf}
         # time.sleep(3)
         
         result = requests.get(post_url, data=payload, headers=header_info)
         #saveFile(result.text,"zhihu_focus_test.html")
-        #print (result.text)
-        raw_hash_id = re.findall("<a href=.*? name=.*? class=.*? id=(.*?)>.*?</a>", result.text)
+        raw_hash_id = re.findall('<a href="javascript:;" name="focus" class="zg-btn zg-btn-follow" id="pp-(.*?)">关注</a>', result.text)
+        start = re.findall(r'class="zm-person-item" id="mi-(.*?)"',result.text)[-1]
         #saveFile(str(raw_hash_id),"raw_hash_id.txt")
-        for item in raw_hash_id:
-           hash_id_all.append(item[4:36])
         print ("get hash_id_page",i)
     return hash_id_all
     
@@ -85,7 +81,7 @@ def saveFile(data,filename):
     f_obj.write(data)
     f_obj.close()
 
-topic_url = "https://www.zhihu.com/topic/19560170/followers"
+#topic_url = "https://www.zhihu.com/topic/19560170/followers"
 header_info = {
 "Accept":"*/*",
 "Accept-Encoding":"gzip,deflate,sdch",
@@ -107,11 +103,11 @@ cookie = loadCookie(cookieFile)
 if cookie:
     print("检测到cookie文件,直接使用cookie登录")
     requests.cookies.update(cookie)
-    soup = BS(requests.get(r"http://www.zhihu.com/").text, "html.parser")
-    print("已登陆账号： %s" % soup.find("span", class_="name").getText())
+    soup = BeautifulSoup(requests.get(r"http://www.zhihu.com/").text, "html.parser")
+    print("已登陆账号： %s" % soup.find("span", class_="name").get_text())
 else:
-    print("没有找到cookie文件，请调用login方法登录一次！")
+    print("没有找到cookie文件,请调用login方法登录一次！")
         
 
-
+topic_url = input("请输入话题链接：")
 getFocus()

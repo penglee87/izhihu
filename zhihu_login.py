@@ -7,7 +7,7 @@ import re
 import sys
 import subprocess
 import time
-from bs4 import BeautifulSoup as BS
+from bs4 import BeautifulSoup
 
 '''
 python3 登录知乎,并保存cookie
@@ -28,19 +28,19 @@ def login( username, password):
     
     # 随便开个网页，获取登陆所需的_xsrf
     html = session.get(homeURL).text    
-    soup = BS(html, "html.parser") 
+    soup = BeautifulSoup(html, "html.parser") 
     _xsrf = soup.find("input", {"name": "_xsrf"})["value"]
     print('_xsrf',_xsrf)
     # 下载验证码图片
     while True:
         captcha = session.get(captchaURL)
-        sessionCookies = captcha.cookies
+        #sessionCookies = captcha.cookies
         captchacookies = session.cookies.get_dict()
         scookies = '; '.join(['='.join(item) for item in captchacookies.items()])
         #captchacookies2 = requests.utils.dict_from_cookiejar(captchacookies)
         #d=json.dumps(captchacookies)
         #f=json.loads(d)
-        print('captchacookies',captchacookies)
+        #print('captchacookies',captchacookies)
         #print('captchacookies2',captchacookies2)
         
         with open(captchaFile, "wb") as output:
@@ -61,7 +61,7 @@ def login( username, password):
             
         }
         headers["cookie"] = scookies   #必须,session会自动重新加载
-        #session.headers = headers
+        session.headers = headers
         
         res = session.post(loginURL, data=data)
         #res = session.post(loginURL, data=data,cookies=sessionCookies)
@@ -103,7 +103,13 @@ def loadCookie(cookieFile):
             return cookie
     return None
 
-        
+def saveFile(data,filename):
+    save_path = os.path.join(sys.path[0], filename)
+    f_obj = open(save_path, 'w',encoding='utf-8') # w 表示打开方式
+    #f_obj = open(save_path, 'w',encoding='cp1252') # 编码异常时尝试
+    f_obj.write(data)
+    f_obj.close()
+    
 # 网址参数是账号类型
 TYPE_PHONE_NUM = "phone_num"
 TYPE_EMAIL = "email"
@@ -138,7 +144,7 @@ cookieFile = os.path.join(sys.path[0], "cookie")
 os.chdir(sys.path[0])  # 设置脚本所在目录为当前工作目录
 
 session = requests.Session()
-session.headers = headers
+#session.headers = headers
 
 # 若已经有 cookie 则直接登录
 cookie = loadCookie(cookieFile)
@@ -146,8 +152,10 @@ cookie = loadCookie(cookieFile)
 if cookie:
     print("检测到cookie文件,直接使用cookie登录")
     session.cookies.update(cookie)
-    soup = BS(session.get(r"http://www.zhihu.com/").text, "html.parser")  
-    print("已登陆账号： %s" % soup.find("span", class_="name").getText())
+    saveFile(session.get(r"http://www.zhihu.com/").text,'t.html')
+    soup = BeautifulSoup(session.get(r"http://www.zhihu.com/").text, "html.parser")  
+    
+    print("已登陆账号： %s" % soup.find("span", class_="name").get_text())
 else:
     print("没有找到cookie文件，请调用login方法登录一次！")
     username = input("请输入用户名：")
